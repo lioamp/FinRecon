@@ -14,7 +14,6 @@ REQUIRED_COLUMNS = [
     "status"
 ]
 
-
 def load_report(file_name: str) -> pd.DataFrame:
 
     file_path = RAW_DATA_DIR / file_name
@@ -32,21 +31,45 @@ def load_report(file_name: str) -> pd.DataFrame:
     if missing_columns:
         raise ValueError(f"Missing required columns: {missing_columns}")
 
+    # Convert transaction dates into datetime format
+    report["transaction_date"] = pd.to_datetime(
+        report["transaction_date"],
+        errors="coerce"
+    )
+
+    # Convert transaction amounts into numeric values
+    report["amount"] = pd.to_numeric(
+        report["amount"],
+        errors="coerce"
+    )
+
     return report
 
+def inspect_report(name: str, report: pd.DataFrame):
+
+    duplicate_ids = report.loc[
+        report["transaction_id"].duplicated(keep=False),
+        "transaction_id"
+    ].unique()
+
+    print(f"\n{name} Inspection")
+    print("-" * 35)
+
+    print(f"Total records: {len(report)}")
+    print(f"Missing values: {report.isna().sum().sum()}")
+    print(f"Invalid dates: {report['transaction_date'].isna().sum()}")
+    print(f"Invalid amounts: {report['amount'].isna().sum()}")
+    print(f"Zero or negative amounts: {(report['amount'].notna() & (report['amount'] <= 0)).sum()}")
+
+    print(f"Duplicate transaction IDs: {list(duplicate_ids)}")
 
 def main():
 
     system_a = load_report("system_a.csv")
     system_b = load_report("system_b.csv")
 
-    print("System A loaded successfully!")
-    print(f"Records: {len(system_a)}")
-    print(system_a.head())
-
-    print("\nSystem B loaded successfully!")
-    print(f"Records: {len(system_b)}")
-    print(system_b.head())
+    inspect_report("System A", system_a)
+    inspect_report("System B", system_b)
 
 
 if __name__ == "__main__":
